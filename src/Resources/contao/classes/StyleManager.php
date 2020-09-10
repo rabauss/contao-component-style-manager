@@ -7,6 +7,9 @@
 
 namespace Oveleon\ContaoComponentStyleManager;
 
+use Contao\CoreBundle\DataContainer\PaletteManipulator;
+use Contao\StringUtil;
+
 class StyleManager
 {
     /**
@@ -50,6 +53,27 @@ class StyleManager
     }
 
     /**
+     * Adding the StyleManager fields and palette to a dca
+     *
+     * @param $dc
+     */
+    public function addPalette($dc)
+    {
+        $palette = PaletteManipulator::create()
+            ->addLegend('style_manager_legend', 'expert_legend', PaletteManipulator::POSITION_BEFORE)
+            ->addField(array('styleManager'), 'style_manager_legend', PaletteManipulator::POSITION_APPEND);
+
+        foreach ($GLOBALS['TL_DCA'][ $dc->table ]['palettes'] as $key=>$value){
+            if($key === '__selector__')
+            {
+                continue;
+            }
+
+            $palette->applyToPalette($key, $dc->table);
+        }
+    }
+
+    /**
      * Clear StyleManager classes from css class field
      *
      * @param mixed $varValue
@@ -61,11 +85,11 @@ class StyleManager
     {
         if(self::isMultipleField($dc->field))
         {
-            $cssID = \StringUtil::deserialize($varValue, true);
+            $cssID = StringUtil::deserialize($varValue, true);
             $varValue = $cssID[1];
         }
 
-        $arrValues = \StringUtil::deserialize($dc->activeRecord->styleManager, true);
+        $arrValues = StringUtil::deserialize($dc->activeRecord->styleManager, true);
         $arrValues = self::deserializeValues($arrValues);
 
         // remove non-exiting values
@@ -103,11 +127,11 @@ class StyleManager
     {
         if(self::isMultipleField($dc->field))
         {
-            $cssID = \StringUtil::deserialize($varValue, true);
+            $cssID = StringUtil::deserialize($varValue, true);
             $varValue = $cssID[1];
         }
 
-        $varValues = \StringUtil::deserialize($dc->activeRecord->styleManager, true);
+        $varValues = StringUtil::deserialize($dc->activeRecord->styleManager, true);
 
         // remove vars node
         if(isset($varValues['__vars__']))
@@ -140,7 +164,7 @@ class StyleManager
     {
         if(self::isMultipleField($dc->field))
         {
-            $cssID = \StringUtil::deserialize($varValue, true);
+            $cssID = StringUtil::deserialize($varValue, true);
             $varValue = $cssID[1];
         }
 
@@ -151,7 +175,7 @@ class StyleManager
         {
             while($objStyles->next())
             {
-                $arrGroup = \StringUtil::deserialize($objStyles->cssClasses, true);
+                $arrGroup = StringUtil::deserialize($objStyles->cssClasses, true);
 
                 foreach ($arrGroup as $opts)
                 {
@@ -202,7 +226,7 @@ class StyleManager
                     // @deprecated: to be removed in Version 3.0. (interception of storage based on the alias. In future, only the ID must be set)
                     $arrExistingKeys[] = $objStyles->alias;
 
-                    $arrGroup = \StringUtil::deserialize($objStyles->cssClasses, true);
+                    $arrGroup = StringUtil::deserialize($objStyles->cssClasses, true);
 
                     foreach ($arrGroup as $opts)
                     {
@@ -359,9 +383,43 @@ class StyleManager
     {
         if(!($template->styleManager instanceof Styles))
         {
-            $arrStyles = \StringUtil::deserialize($template->styleManager);
+            $arrStyles = StringUtil::deserialize($template->styleManager);
             $template->styleManager = new Styles(isset($arrStyles['__vars__']) ? $arrStyles['__vars__'] : null);
         }
+    }
+
+    /**
+     * Parse Template and set Variables
+     *
+     * @param $objWidget
+     *
+     * @return \Widget
+     */
+    public function onLoadFormField($objWidget)
+    {
+        if(!($objWidget->styleManager instanceof Styles))
+        {
+            $arrStyles = StringUtil::deserialize($objWidget->styleManager);
+            $objWidget->styleManager = new Styles(isset($arrStyles['__vars__']) ? $arrStyles['__vars__'] : null);
+        }
+
+        return $objWidget;
+    }
+
+    /**
+     * Add the type of input field
+     *
+     * @param array $arrRow
+     *
+     * @return string
+     */
+    public function listFormFields($arrRow)
+    {
+        $arrStyles = StringUtil::deserialize($arrRow['styleManager']);
+        $arrRow['styleManager'] = new Styles(isset($arrStyles['__vars__']) ? $arrStyles['__vars__'] : null);
+
+        $formField = new \tl_form_field();
+        return $formField->listFormFields($arrRow);
     }
 
     /**
